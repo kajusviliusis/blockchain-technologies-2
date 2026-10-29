@@ -38,11 +38,35 @@ mvn exec:java -Dexec.mainClass="lt.vu.blockchain.Main"
 
 ## Rezultatai
 
-Konsolėje pateikiama kiekvieno iškasto bloko informacija ir galutinė simuliacijos statistika.
+### Bloko pavyzdys
 
-**Bloko pavyzdys:** [įkelti išvestį]
+```text
+Block height: 100, transactions: 48
+  Previous hash: 000cae7f651815c656c57de46b6859ac9a5ab94d6f5f42b8cf7aab449ce97d6a
+  Transaction root: c52c7b728b860cbe4a61d9e3c37d5ea8f6c79633af7c94330a245bc78b945631
+  Block hash: 000f2f4ec833eca97b667fa43365d7beac11e425d6cf59efd34da8761968699f
+  Difficulty: 3, nonce: 9987
+  Mining attempts: 9988, duration: 33 ms
+```
 
-**Galutinė suvestinė:** [įkelti išvestį]
+### Galutinė suvestinė
+
+```text
+Generated users: 1000
+Generated transactions: 10000
+Accepted non-genesis blocks: 100
+Confirmed transactions: 9948
+Rejected transactions: 0
+Remaining pending transactions: 52
+Initial total balance: 498302330
+Final total balance: 498302330
+Total execution time: 1822 ms
+```
+
+Iš 10 000 sugeneruotų transakcijų patvirtintos 9 948 (99,48 %).
+Likusios 52 transakcijos neįvykdytos dėl nepakankamo siuntėjų balanso.
+
+Pradinė ir galutinė lėšų suma sutampa, todėl simuliacijoje išlaikytas lėšų sumos pastovumas.
 
 ## DI naudojimas
 
