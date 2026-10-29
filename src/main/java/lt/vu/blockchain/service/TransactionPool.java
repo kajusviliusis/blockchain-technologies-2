@@ -44,6 +44,15 @@ public final class TransactionPool {
     return List.copyOf(pending);
   }
 
+  public void removeConfirmedTransactions(List<Transaction> transactions) {
+    Set<String> confirmedIds = new HashSet<>();
+    for (Transaction transaction : transactions) {
+      confirmedIds.add(transaction.transactionId());
+    }
+    pending.removeIf(transaction -> confirmedIds.contains(transaction.transactionId()));
+    pendingIds.removeAll(confirmedIds);
+  }
+
   public List<Transaction> selectTransactions(Blockchain blockchain) {
     Map<String, Long> temporaryBalances = new HashMap<>(blockchain.balances());
     Set<String> confirmedIds = blockchain.confirmedTransactionIds();
