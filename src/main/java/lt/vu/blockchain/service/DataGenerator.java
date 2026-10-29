@@ -57,18 +57,12 @@ public final class DataGenerator {
       String receiver = users.get(receiverIndex).publicKey();
       long amount = random.nextInt(1, MAX_AMOUNT + 1);
       long sequence = nextSequence++;
+      Transaction transactionWithoutId = new Transaction(sender, receiver, amount, sequence, null);
       String transactionId =
-          hashFunction.hash(
-              serializeTransaction(sender, receiver, amount, sequence)
-                  .getBytes(StandardCharsets.UTF_8));
+          hashFunction.hash(transactionWithoutId.serialize().getBytes(StandardCharsets.UTF_8));
 
       transactions.add(new Transaction(sender, receiver, amount, sequence, transactionId));
     }
     return List.copyOf(transactions);
-  }
-
-  public static String serializeTransaction(
-      String sender, String receiver, long amount, long sequence) {
-    return sender + "|" + receiver + "|" + amount + "|" + sequence;
   }
 }
