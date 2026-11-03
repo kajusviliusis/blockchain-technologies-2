@@ -22,7 +22,7 @@ public final class Main {
     List<User> users = generator.generateUsers();
     List<Transaction> transactions = generator.generateTransactions(users);
     Blockchain blockchain = new Blockchain(users);
-    TransactionPool transactionPool = new TransactionPool(transactions, 42L);
+    TransactionPool transactionPool = new TransactionPool(blockchain, transactions, 42L);
     BlockchainSimulation simulation = new BlockchainSimulation(blockchain, transactionPool);
     simulation.run();
 

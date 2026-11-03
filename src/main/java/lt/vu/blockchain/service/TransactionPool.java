@@ -20,14 +20,16 @@ public final class TransactionPool {
   private final List<Transaction> pending = new ArrayList<>();
   private final Set<String> pendingIds = new HashSet<>();
   private final List<RejectedTransaction> rejectedTransactions = new ArrayList<>();
+  private final Blockchain blockchain;
   private final Random random;
   private final HashFunctionV012 hashFunction = new HashFunctionV012();
 
-  public TransactionPool(List<Transaction> transactions) {
-    this(transactions, 42L);
+  public TransactionPool(Blockchain blockchain, List<Transaction> transactions) {
+    this(blockchain, transactions, 42L);
   }
 
-  public TransactionPool(List<Transaction> transactions, long seed) {
+  public TransactionPool(Blockchain blockchain, List<Transaction> transactions, long seed) {
+    this.blockchain = blockchain;
     random = new Random(seed);
     for (Transaction transaction : transactions) {
       addTransaction(transaction);
@@ -39,10 +41,17 @@ public final class TransactionPool {
       recordRejection(transaction, "null transaction");
       return false;
     }
-    if (!pendingIds.add(transaction.transactionId())) {
+    if (pendingIds.contains(transaction.transactionId())) {
       recordRejection(transaction, "duplicate transaction ID");
       return false;
     }
+    String reason =
+        rejectionReason(transaction, blockchain.balances(), blockchain.confirmedTransactionIds());
+    if (reason != null) {
+      recordRejection(transaction, reason);
+      return false;
+    }
+    pendingIds.add(transaction.transactionId());
     pending.add(transaction);
     return true;
   }
