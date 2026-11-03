@@ -12,6 +12,7 @@ import java.util.Set;
 import lt.vu.blockchain.hashing.HashFunctionV012;
 import lt.vu.blockchain.model.Block;
 import lt.vu.blockchain.model.BlockHeader;
+import lt.vu.blockchain.model.MiningResult;
 import lt.vu.blockchain.model.Transaction;
 import lt.vu.blockchain.model.User;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class ValidationTest {
 
     Transaction insufficientFunds = transaction("a", "b", 200, 3);
     assertTrue(pool.addTransaction(insufficientFunds));
-    assertTrue(pool.selectTransactions(blockchain).isEmpty());
+    assertTrue(pool.selectTransactions().isEmpty());
     assertEquals(List.of(insufficientFunds), pool.pendingTransactions());
     assertEquals(3, pool.rejectedTransactions().size());
 
@@ -94,6 +95,8 @@ class ValidationTest {
     }
     String prevHash = hashFunction.hash(blockchain.chain().getLast().header().serialize());
     BlockHeader header = new BlockHeader(prevHash, 1, 1, MerkleTree.calculateRoot(ids), 0, 3);
-    return new Block(new Miner().mine(header).header(), transactions);
+    MiningResult result = new Miner().mine(header, 0, 1_000_000);
+    assertTrue(result.found());
+    return new Block(result.header(), transactions);
   }
 }

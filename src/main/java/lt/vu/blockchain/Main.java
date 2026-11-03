@@ -28,23 +28,52 @@ public final class Main {
 
     long executionMillis = (System.nanoTime() - startTime) / 1_000_000;
     List<Block> chain = blockchain.chain();
-    Map<Integer, MiningResult> miningResults = simulation.miningResultsByHeight();
+    Map<Integer, List<List<MiningResult>>> candidateRounds = simulation.candidateRoundsByHeight();
+    Map<Integer, Integer> winners = simulation.winningCandidateByHeight();
     for (int height = 1; height < chain.size(); height++) {
       Block block = chain.get(height);
       BlockHeader header = block.header();
-      MiningResult result = miningResults.get(height);
-      if (result == null) {
-        throw new IllegalStateException("Missing mining result for block " + height);
+      List<List<MiningResult>> rounds = candidateRounds.get(height);
+      Integer winner = winners.get(height);
+      if (rounds == null || winner == null) {
+        throw new IllegalStateException("Missing candidate results for block " + height);
       }
+      MiningResult winningResult = rounds.getLast().get(winner - 1);
 
       System.out.printf(
           "Block height: %d, transactions: %d%n", height, block.transactions().size());
       System.out.printf("  Previous hash: %s%n", header.prevHash());
       System.out.printf("  Transaction root: %s%n", header.txRoot());
-      System.out.printf("  Block hash: %s%n", result.hash());
+      System.out.printf("  Block hash: %s%n", winningResult.hash());
       System.out.printf("  Difficulty: %d, nonce: %d%n", header.difficulty(), header.nonce());
+      long[] totalAttempts = new long[5];
+      long winningDurationMillis = 0;
+      for (int roundIndex = 0; roundIndex < rounds.size(); roundIndex++) {
+        System.out.printf("  Round %d:%n", roundIndex + 1);
+        List<MiningResult> candidates = rounds.get(roundIndex);
+        for (int candidateIndex = 0; candidateIndex < candidates.size(); candidateIndex++) {
+          MiningResult candidate = candidates.get(candidateIndex);
+          totalAttempts[candidateIndex] += candidate.attempts();
+          if (candidateIndex == winner - 1) {
+            winningDurationMillis += candidate.durationMillis();
+          }
+          System.out.printf(
+              "    Candidate %d: %d attempts (total %d), %d ms, %s%n",
+              candidateIndex + 1,
+              candidate.attempts(),
+              totalAttempts[candidateIndex],
+              candidate.durationMillis(),
+              candidate.found() ? "PoW found" : "no PoW");
+        }
+        if (roundIndex == rounds.size() - 1) {
+          System.out.printf("    Winner: candidate %d%n", winner);
+        } else {
+          System.out.println("    Winner: none");
+        }
+      }
       System.out.printf(
-          "  Mining attempts: %d, duration: %d ms%n", result.attempts(), result.durationMillis());
+          "  Mining attempts: %d, duration: %d ms%n",
+          totalAttempts[winner - 1], winningDurationMillis);
     }
 
     int confirmedCount = blockchain.confirmedTransactionIds().size();

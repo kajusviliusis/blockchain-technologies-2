@@ -73,7 +73,9 @@ public final class TransactionPool {
     pendingIds.removeAll(confirmedIds);
   }
 
-  public List<Transaction> selectTransactions(Blockchain blockchain) {
+  public List<Transaction> selectTransactions() {
+    // Naudojame laikina balansu kopija, kad tikrindami transakcijas nekeistume
+    // tikruju balansu.
     Map<String, Long> temporaryBalances = new HashMap<>(blockchain.balances());
     Set<String> confirmedIds = blockchain.confirmedTransactionIds();
     List<Transaction> shuffled = new ArrayList<>(pending);
@@ -94,6 +96,8 @@ public final class TransactionPool {
 
       long senderBalance = temporaryBalances.get(transaction.sender());
       long receiverBalance = temporaryBalances.get(transaction.receiver());
+      // Jei siuntejui neuztenka balanso, transakcija paliekame pending, nes balance
+      // gali atsirasti veliau.
       if (senderBalance < transaction.amount()) {
         continue;
       }

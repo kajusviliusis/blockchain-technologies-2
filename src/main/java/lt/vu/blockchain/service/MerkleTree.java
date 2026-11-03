@@ -22,8 +22,9 @@ public final class MerkleTree {
       List<String> parents = new ArrayList<>((level.size() + 1) / 2);
       for (int i = 0; i < level.size(); i += 2) {
         String left = level.get(i);
-        // duplikuojam paskutini lapa, jei nera salia desinio lapo
+        // Jei desinio kaimyno nera, dubliuojame paskutini, kad susidarytu pora.
         String right = i + 1 < level.size() ? level.get(i + 1) : left;
+        // Hash paverciame baitais, kad tevus skaiciuotume is duomenu, o ne is teksto.
         byte[] leftBytes = hex.parseHex(left);
         byte[] rightBytes = hex.parseHex(right);
         byte[] combined = new byte[leftBytes.length + rightBytes.length];
