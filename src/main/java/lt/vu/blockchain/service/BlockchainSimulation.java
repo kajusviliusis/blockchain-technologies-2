@@ -1,7 +1,7 @@
 package lt.vu.blockchain.service;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,11 +32,11 @@ public final class BlockchainSimulation {
         return;
       }
 
-      StringBuilder transactionIds = new StringBuilder();
+      List<String> transactionIds = new ArrayList<>(selected.size());
       for (Transaction transaction : selected) {
-        transactionIds.append(transaction.transactionId());
+        transactionIds.add(transaction.transactionId());
       }
-      String txRoot = hashFunction.hash(transactionIds.toString().getBytes(StandardCharsets.UTF_8));
+      String txRoot = MerkleTree.calculateRoot(transactionIds);
       String prevHash = hashFunction.hash(blockchain.chain().getLast().header().serialize());
       BlockHeader header =
           new BlockHeader(prevHash, Instant.now().getEpochSecond(), 1, txRoot, 0, 3);

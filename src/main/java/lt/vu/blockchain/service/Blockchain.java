@@ -27,7 +27,7 @@ public final class Blockchain {
     }
     initialBalances = Map.copyOf(balances);
 
-    String emptyTxRoot = hashFunction.hash(new byte[0]);
+    String emptyTxRoot = MerkleTree.calculateRoot(List.of());
     BlockHeader genesisHeader = new BlockHeader("0".repeat(64), 0, 1, emptyTxRoot, 0, 3);
     chain.add(new Block(genesisHeader, List.of()));
   }
@@ -73,7 +73,7 @@ public final class Blockchain {
 
     Map<String, Long> temporaryBalances = new HashMap<>(balances);
     Set<String> blockTransactionIds = new HashSet<>();
-    StringBuilder concatenatedIds = new StringBuilder();
+    List<String> transactionIds = new ArrayList<>(transactions.size());
     for (Transaction transaction : transactions) {
       if (!isValidTransaction(transaction, temporaryBalances, blockTransactionIds)) {
         return false;
@@ -89,11 +89,10 @@ public final class Blockchain {
       temporaryBalances.put(transaction.sender(), senderBalance - transaction.amount());
       temporaryBalances.put(transaction.receiver(), receiverBalance + transaction.amount());
       blockTransactionIds.add(transaction.transactionId());
-      concatenatedIds.append(transaction.transactionId());
+      transactionIds.add(transaction.transactionId());
     }
 
-    String expectedRoot =
-        hashFunction.hash(concatenatedIds.toString().getBytes(StandardCharsets.UTF_8));
+    String expectedRoot = MerkleTree.calculateRoot(transactionIds);
     if (!expectedRoot.equals(header.txRoot())) {
       return false;
     }
