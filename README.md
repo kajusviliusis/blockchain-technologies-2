@@ -31,6 +31,34 @@ Programa generuoja vartotojus ir transakcijas, formuoja blokus, atlieka Proof-of
 
 Tai vietinė konkurencijos simuliacija, **ne P2P konsensusas**: nėra nepriklausomų tinklo mazgų, blokų siuntimo tinklu ar grandinės šakų derinimo.
 
+## Projekto struktūra
+
+```text
+src/
+├── main/java/lt/vu/blockchain/
+│   ├── Main.java                     # Paleidimas ir rezultatu isvedimas
+│   ├── hashing/
+│   │   └── HashFunctionV012.java     # Maisos funkcija is pirmojo darbo
+│   ├── model/
+│   │   ├── User.java                 # Vartotojo duomenys
+│   │   ├── Transaction.java          # Transakcijos duomenys
+│   │   ├── Block.java                # Blokas ir jo transakcijos
+│   │   ├── BlockHeader.java          # Bloko antraste
+│   │   ├── MiningResult.java         # Kasimo rezultatas
+│   │   └── RejectedTransaction.java  # Atmesta transakcija ir priezastis
+│   └── service/
+│       ├── DataGenerator.java        # Duomenu generavimas
+│       ├── TransactionPool.java      # Laukianciu transakciju atranka
+│       ├── Blockchain.java           # Grandine, validacija ir balansai
+│       ├── BlockchainSimulation.java # Kandidatu konkurencija
+│       ├── Miner.java                # PoW kasimas
+│       └── MerkleTree.java           # Merkle saknies skaiciavimas
+└── test/java/lt/vu/blockchain/service/
+    ├── MerkleTreeTest.java           # Merkle medzio testai
+    ├── ValidationTest.java           # Validacijos ir balansu testai
+    └── BlockchainSimulationTest.java # Kandidatu ir PoW testai
+```
+
 ## Paleidimas
 
 Reikalingi Java 21 ir Maven.
