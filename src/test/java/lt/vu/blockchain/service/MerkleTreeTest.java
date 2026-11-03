@@ -1,6 +1,7 @@
 package lt.vu.blockchain.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.util.List;
 import lt.vu.blockchain.hashing.HashFunctionV012;
@@ -27,5 +28,19 @@ class MerkleTreeTest {
     assertEquals(
         MerkleTree.calculateRoot(List.of("01", "02", "03", "03")),
         MerkleTree.calculateRoot(List.of("01", "02", "03")));
+  }
+
+  @Test
+  void fiveTransactionsAndOrderAffectTheRoot() {
+    List<String> ids = List.of("01", "02", "03", "04", "05");
+    assertEquals(
+        MerkleTree.calculateRoot(List.of("01", "02", "03", "04", "05", "05", "05", "05")),
+        MerkleTree.calculateRoot(ids));
+    assertNotEquals(
+        MerkleTree.calculateRoot(ids),
+        MerkleTree.calculateRoot(List.of("01", "02", "03", "04", "06")));
+    assertNotEquals(
+        MerkleTree.calculateRoot(ids),
+        MerkleTree.calculateRoot(List.of("02", "01", "03", "04", "05")));
   }
 }

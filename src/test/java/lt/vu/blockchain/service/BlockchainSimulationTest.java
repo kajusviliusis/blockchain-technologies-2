@@ -91,7 +91,9 @@ class BlockchainSimulationTest {
     List<MiningResult> round = simulation.candidateRoundsByHeight().get(1).getFirst();
     assertEquals(5, round.size());
     for (MiningResult result : round) {
+      assertTrue(result.found());
       assertEquals(round.getFirst().attempts(), result.attempts());
+      assertEquals(round.getFirst().hash(), result.hash());
     }
     assertEquals(1, simulation.winningCandidateByHeight().get(1));
   }
