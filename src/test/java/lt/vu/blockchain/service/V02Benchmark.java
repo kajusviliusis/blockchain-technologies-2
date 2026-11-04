@@ -14,7 +14,7 @@ public final class V02Benchmark {
   private static final int CANDIDATES_PER_HEIGHT = 5;
   private static final int HEIGHT_REPEATS = 20;
   private static final int SELECTIONS_PER_RUN = CANDIDATES_PER_HEIGHT * HEIGHT_REPEATS;
-  private static final int MERKLE_REPEATS = 50;
+  private static final int MERKLE_REPEATS = 200;
   private static volatile long checksum;
   private static volatile int selectedCount;
 
@@ -80,8 +80,13 @@ public final class V02Benchmark {
         throw new IllegalStateException("Selection work differs in measured run " + i);
       }
       transactionsPerRun = baselineCount;
-      baselineMerkleTimes[i] = timeMerkle(merkleIds, true);
-      currentMerkleTimes[i] = timeMerkle(merkleIds, false);
+      if (i % 2 == 0) {
+        baselineMerkleTimes[i] = timeMerkle(merkleIds, true);
+        currentMerkleTimes[i] = timeMerkle(merkleIds, false);
+      } else {
+        currentMerkleTimes[i] = timeMerkle(merkleIds, false);
+        baselineMerkleTimes[i] = timeMerkle(merkleIds, true);
+      }
     }
 
     if (baseline.pendingTransactions().size() != transactions.size()
@@ -97,17 +102,26 @@ public final class V02Benchmark {
             + " candidate selections, "
             + transactionsPerRun
             + " selected per run");
-    printTimes("TransactionPool v0.2 (ms per run)", baselineSelectionTimes);
-    printTimes("TransactionPool v0.3 (ms per run)", optimizedSelectionTimes);
+    double baselineSelectionAverage =
+        printTimes("TransactionPool v0.2 (ms per run)", baselineSelectionTimes);
+    double optimizedSelectionAverage =
+        printTimes("TransactionPool v0.3 (ms per run)", optimizedSelectionTimes);
+    System.out.printf(
+        "TransactionPool time reduction: %.1f%%%n",
+        100 * (baselineSelectionAverage - optimizedSelectionAverage) / baselineSelectionAverage);
     System.out.println("Merkle: 100 fixed IDs, " + MERKLE_REPEATS + " roots per run");
-    printTimes("MerkleTree v0.2 (ms per root)", baselineMerkleTimes);
-    printTimes("MerkleTree current (ms per root)", currentMerkleTimes);
-    printAllocations(baseline, optimized);
+    double baselineMerkleAverage = printTimes("MerkleTree v0.2 (ms per root)", baselineMerkleTimes);
+    double currentMerkleAverage =
+        printTimes("MerkleTree current (ms per root)", currentMerkleTimes);
+    System.out.printf(
+        "MerkleTree time reduction: %.1f%%%n",
+        100 * (baselineMerkleAverage - currentMerkleAverage) / baselineMerkleAverage);
+    printAllocations(baseline, optimized, merkleIds);
     System.out.println("Checksum: " + checksum);
   }
 
   private static void printAllocations(
-      TransactionPoolV02Baseline baseline, TransactionPool optimized) {
+      TransactionPoolV02Baseline baseline, TransactionPool optimized, List<String> merkleIds) {
     if (!(ManagementFactory.getThreadMXBean() instanceof ThreadMXBean bean)
         || !bean.isThreadAllocatedMemorySupported()) {
       System.out.println("Thread allocation measurement unavailable on this JVM");
@@ -130,6 +144,20 @@ public final class V02Benchmark {
             + baselineBytes
             + ", v0.3 "
             + optimizedBytes);
+
+    start = bean.getThreadAllocatedBytes(threadId);
+    timeMerkle(merkleIds, true);
+    long baselineMerkleBytes = bean.getThreadAllocatedBytes(threadId) - start;
+    start = bean.getThreadAllocatedBytes(threadId);
+    timeMerkle(merkleIds, false);
+    long currentMerkleBytes = bean.getThreadAllocatedBytes(threadId) - start;
+    System.out.println(
+        "Allocated bytes per "
+            + MERKLE_REPEATS
+            + " Merkle roots: v0.2 "
+            + baselineMerkleBytes
+            + ", v0.3 "
+            + currentMerkleBytes);
   }
 
   private static double timeSelection(TransactionPoolV02Baseline pool) {
@@ -179,7 +207,7 @@ public final class V02Benchmark {
     return elapsed / 1_000_000.0 / MERKLE_REPEATS;
   }
 
-  private static void printTimes(String label, double[] times) {
+  private static double printTimes(String label, double[] times) {
     double sum = 0;
     for (int i = 0; i < times.length; i++) {
       System.out.printf("%s run %d: %.3f ms%n", label, i + 1, times[i]);
@@ -194,5 +222,6 @@ public final class V02Benchmark {
     System.out.printf(
         "%s average: %.3f ms, standard deviation: %.3f ms%n",
         label, average, Math.sqrt(squaredDifferences / times.length));
+    return average;
   }
 }
