@@ -33,7 +33,7 @@ Tai vietinė konkurencijos simuliacija, **ne P2P konsensusas**: nėra nepriklaus
 
 ## v0.3 – DI pagalba atlikti patobulinimai
 
-2026-11-04 su **OpenAI Codex (GPT-6)** optimizuotos dvi v0.2 dalys. Originali `HashFunctionV012.java` nebuvo keičiama.
+Su **OpenAI Codex (GPT-6)** optimizuotos dvi v0.2 dalys. Originali `HashFunctionV012.java` nebuvo keičiama.
 
 ### Transakcijų atranka (`TransactionPool`)
 
