@@ -15,7 +15,7 @@ import lt.vu.blockchain.model.Transaction;
 import lt.vu.blockchain.model.User;
 import org.junit.jupiter.api.Test;
 
-class TransactionPoolOptimizationTest {
+class TransactionPoolComparisonTest {
 
   private final HashFunctionV012 hashFunction = new HashFunctionV012();
 

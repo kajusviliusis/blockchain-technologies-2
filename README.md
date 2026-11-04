@@ -85,11 +85,11 @@ src/
     ├── MerkleTreeTest.java            # Merkle medžio testai
     ├── ValidationTest.java            # Validacijos ir balansų testai
     ├── BlockchainSimulationTest.java  # Kandidatų ir PoW testai
-    ├── V02BaselineTest.java           # v0.2 ir v0.3 rezultatų palyginimas
-    ├── TransactionPoolOptimizationTest.java # Atrankos testai
+    ├── VersionComparisonTest.java     # v0.2 ir v0.3 rezultatų palyginimas
+    ├── TransactionPoolComparisonTest.java # Atrankos testai
     ├── TransactionPoolV02Baseline.java       # v0.2 atrankos kopija
     ├── MerkleTreeV02Baseline.java     # v0.2 Merkle medžio kopija
-    └── V02Benchmark.java              # Našumo palyginimas
+    └── PerformanceComparisonBenchmark.java # Našumo palyginimas
 ```
 
 ## Paleidimas
@@ -117,7 +117,7 @@ mvn clean test
 Našumo palyginimas po testų kompiliavimo (dvitaškis klasės kelyje tinka „macOS“ ir „Linux“):
 
 ```bash
-java -Xms512m -Xmx512m -cp target/classes:target/test-classes lt.vu.blockchain.service.V02Benchmark
+java -Xms512m -Xmx512m -cp target/classes:target/test-classes lt.vu.blockchain.service.PerformanceComparisonBenchmark
 ```
 
 ## Rezultatai

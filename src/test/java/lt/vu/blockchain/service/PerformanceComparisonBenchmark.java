@@ -7,7 +7,7 @@ import java.util.List;
 import lt.vu.blockchain.model.Transaction;
 import lt.vu.blockchain.model.User;
 
-public final class V02Benchmark {
+public final class PerformanceComparisonBenchmark {
 
   private static final int WARMUP_RUNS = 3;
   private static final int MEASURED_RUNS = 5;
@@ -18,7 +18,7 @@ public final class V02Benchmark {
   private static volatile long checksum;
   private static volatile int selectedCount;
 
-  private V02Benchmark() {}
+  private PerformanceComparisonBenchmark() {}
 
   public static void main(String[] args) {
     DataGenerator generator = new DataGenerator(42L);

@@ -11,7 +11,7 @@ import java.util.Locale;
 import lt.vu.blockchain.hashing.HashFunctionV012;
 import org.junit.jupiter.api.Test;
 
-class V02BaselineTest {
+class VersionComparisonTest {
 
   @Test
   void merkleBaselineMatchesProductionAcrossSizes() {
