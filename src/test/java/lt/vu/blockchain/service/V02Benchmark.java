@@ -1,85 +1,178 @@
 package lt.vu.blockchain.service;
 
-import java.nio.charset.StandardCharsets;
+import com.sun.management.ThreadMXBean;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
-import lt.vu.blockchain.hashing.HashFunctionV012;
-import lt.vu.blockchain.model.BlockHeader;
-import lt.vu.blockchain.model.MiningResult;
+import lt.vu.blockchain.model.Transaction;
+import lt.vu.blockchain.model.User;
 
 public final class V02Benchmark {
 
   private static final int WARMUP_RUNS = 3;
   private static final int MEASURED_RUNS = 5;
-  private static final long MINING_START_NONCE = 5_000;
-  private static final int MINING_ATTEMPTS = 5_000;
+  private static final int CANDIDATES_PER_HEIGHT = 5;
+  private static final int HEIGHT_REPEATS = 20;
+  private static final int SELECTIONS_PER_RUN = CANDIDATES_PER_HEIGHT * HEIGHT_REPEATS;
   private static final int MERKLE_REPEATS = 50;
-  private static volatile int checksum;
+  private static volatile long checksum;
+  private static volatile int selectedCount;
 
   private V02Benchmark() {}
 
   public static void main(String[] args) {
-    HashFunctionV012 hashFunction = new HashFunctionV012();
-    List<String> ids = new ArrayList<>();
+    DataGenerator generator = new DataGenerator(42L);
+    List<User> users = generator.generateUsers();
+    List<Transaction> transactions = generator.generateTransactions(users);
+    Blockchain blockchain = new Blockchain(users);
+    TransactionPoolV02Baseline baseline =
+        new TransactionPoolV02Baseline(blockchain, transactions, 42L);
+    TransactionPool optimized = new TransactionPool(blockchain, transactions, 42L);
+
+    List<String> merkleIds = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      ids.add(hashFunction.hash(("transaction-" + i).getBytes(StandardCharsets.UTF_8)));
+      merkleIds.add(transactions.get(i).transactionId());
+    }
+    if (!MerkleTreeV02Baseline.calculateRoot(merkleIds)
+        .equals(MerkleTree.calculateRoot(merkleIds))) {
+      throw new IllegalStateException("Merkle roots differ");
     }
 
-    String root = MerkleTreeV02Baseline.calculateRoot(ids);
-    if (!root.equals(MerkleTree.calculateRoot(ids))) {
-      throw new IllegalStateException("Merkle baseline differs from production");
-    }
-
-    BlockHeader header = new BlockHeader("0".repeat(64), 0, 1, root, 0, 3);
-    MinerV02Baseline miner = new MinerV02Baseline();
-    MiningResult baselineResult = miner.mine(header, MINING_START_NONCE, MINING_ATTEMPTS);
-    MiningResult currentResult = new Miner().mine(header, MINING_START_NONCE, MINING_ATTEMPTS);
-    if (!baselineResult.header().equals(currentResult.header())
-        || !baselineResult.hash().equals(currentResult.hash())
-        || baselineResult.attempts() != currentResult.attempts()
-        || baselineResult.found() != currentResult.found()) {
-      throw new IllegalStateException("Mining baseline differs from production");
+    for (int i = 0; i < SELECTIONS_PER_RUN; i++) {
+      if (!baseline.selectTransactions().equals(optimized.selectTransactions())) {
+        throw new IllegalStateException("Selected transactions differ at selection " + i);
+      }
     }
 
     for (int i = 0; i < WARMUP_RUNS; i++) {
-      timeMining(miner, header);
-      timeMerkle(ids);
+      timeSelection(baseline);
+      timeSelection(optimized);
+      timeMerkle(merkleIds, true);
+      timeMerkle(merkleIds, false);
     }
 
-    double[] miningTimes = new double[MEASURED_RUNS];
-    double[] merkleTimes = new double[MEASURED_RUNS];
+    double[] baselineSelectionTimes = new double[MEASURED_RUNS];
+    double[] optimizedSelectionTimes = new double[MEASURED_RUNS];
+    double[] baselineMerkleTimes = new double[MEASURED_RUNS];
+    double[] currentMerkleTimes = new double[MEASURED_RUNS];
+    int transactionsPerRun = 0;
     for (int i = 0; i < MEASURED_RUNS; i++) {
-      miningTimes[i] = timeMining(miner, header);
-      merkleTimes[i] = timeMerkle(ids);
+      long baselineChecksum;
+      int baselineCount;
+      long optimizedChecksum;
+      int optimizedCount;
+      if (i % 2 == 0) {
+        baselineSelectionTimes[i] = timeSelection(baseline);
+        baselineChecksum = checksum;
+        baselineCount = selectedCount;
+        optimizedSelectionTimes[i] = timeSelection(optimized);
+        optimizedChecksum = checksum;
+        optimizedCount = selectedCount;
+      } else {
+        optimizedSelectionTimes[i] = timeSelection(optimized);
+        optimizedChecksum = checksum;
+        optimizedCount = selectedCount;
+        baselineSelectionTimes[i] = timeSelection(baseline);
+        baselineChecksum = checksum;
+        baselineCount = selectedCount;
+      }
+      if (baselineChecksum != optimizedChecksum || baselineCount != optimizedCount) {
+        throw new IllegalStateException("Selection work differs in measured run " + i);
+      }
+      transactionsPerRun = baselineCount;
+      baselineMerkleTimes[i] = timeMerkle(merkleIds, true);
+      currentMerkleTimes[i] = timeMerkle(merkleIds, false);
+    }
+
+    if (baseline.pendingTransactions().size() != transactions.size()
+        || optimized.pendingTransactions().size() != transactions.size()) {
+      throw new IllegalStateException("Selection changed the pending pool");
     }
 
     System.out.println(
-        "Mining: difficulty 3, nonce "
-            + MINING_START_NONCE
-            + "-"
-            + (MINING_START_NONCE + MINING_ATTEMPTS - 1)
-            + ", "
-            + baselineResult.attempts()
-            + " attempts per run");
-    printTimes("Mining (ms per run)", miningTimes);
+        "Transaction selection: "
+            + transactions.size()
+            + " pending, "
+            + SELECTIONS_PER_RUN
+            + " candidate selections, "
+            + transactionsPerRun
+            + " selected per run");
+    printTimes("TransactionPool v0.2 (ms per run)", baselineSelectionTimes);
+    printTimes("TransactionPool v0.3 (ms per run)", optimizedSelectionTimes);
     System.out.println("Merkle: 100 fixed IDs, " + MERKLE_REPEATS + " roots per run");
-    printTimes("Merkle (ms per root)", merkleTimes);
+    printTimes("MerkleTree v0.2 (ms per root)", baselineMerkleTimes);
+    printTimes("MerkleTree current (ms per root)", currentMerkleTimes);
+    printAllocations(baseline, optimized);
     System.out.println("Checksum: " + checksum);
   }
 
-  private static double timeMining(MinerV02Baseline miner, BlockHeader header) {
+  private static void printAllocations(
+      TransactionPoolV02Baseline baseline, TransactionPool optimized) {
+    if (!(ManagementFactory.getThreadMXBean() instanceof ThreadMXBean bean)
+        || !bean.isThreadAllocatedMemorySupported()) {
+      System.out.println("Thread allocation measurement unavailable on this JVM");
+      return;
+    }
+    if (!bean.isThreadAllocatedMemoryEnabled()) {
+      bean.setThreadAllocatedMemoryEnabled(true);
+    }
+    long threadId = Thread.currentThread().threadId();
+    long start = bean.getThreadAllocatedBytes(threadId);
+    timeSelection(baseline);
+    long baselineBytes = bean.getThreadAllocatedBytes(threadId) - start;
+    start = bean.getThreadAllocatedBytes(threadId);
+    timeSelection(optimized);
+    long optimizedBytes = bean.getThreadAllocatedBytes(threadId) - start;
+    System.out.println(
+        "Allocated bytes per "
+            + SELECTIONS_PER_RUN
+            + " selections: v0.2 "
+            + baselineBytes
+            + ", v0.3 "
+            + optimizedBytes);
+  }
+
+  private static double timeSelection(TransactionPoolV02Baseline pool) {
+    long value = 0;
+    int count = 0;
     long start = System.nanoTime();
-    MiningResult result = miner.mine(header, MINING_START_NONCE, MINING_ATTEMPTS);
+    for (int i = 0; i < SELECTIONS_PER_RUN; i++) {
+      List<Transaction> selected = pool.selectTransactions();
+      count += selected.size();
+      for (Transaction transaction : selected) {
+        value = 31 * value + transaction.transactionId().hashCode();
+      }
+    }
     long elapsed = System.nanoTime() - start;
-    checksum = result.hash().hashCode();
+    checksum = value;
+    selectedCount = count;
     return elapsed / 1_000_000.0;
   }
 
-  private static double timeMerkle(List<String> ids) {
-    int value = 0;
+  private static double timeSelection(TransactionPool pool) {
+    long value = 0;
+    int count = 0;
+    long start = System.nanoTime();
+    for (int i = 0; i < SELECTIONS_PER_RUN; i++) {
+      List<Transaction> selected = pool.selectTransactions();
+      count += selected.size();
+      for (Transaction transaction : selected) {
+        value = 31 * value + transaction.transactionId().hashCode();
+      }
+    }
+    long elapsed = System.nanoTime() - start;
+    checksum = value;
+    selectedCount = count;
+    return elapsed / 1_000_000.0;
+  }
+
+  private static double timeMerkle(List<String> ids, boolean baseline) {
+    long value = 0;
     long start = System.nanoTime();
     for (int i = 0; i < MERKLE_REPEATS; i++) {
-      value += MerkleTreeV02Baseline.calculateRoot(ids).hashCode();
+      String root =
+          baseline ? MerkleTreeV02Baseline.calculateRoot(ids) : MerkleTree.calculateRoot(ids);
+      value = 31 * value + root.hashCode();
     }
     long elapsed = System.nanoTime() - start;
     checksum = value;
@@ -98,8 +191,8 @@ public final class V02Benchmark {
       double difference = time - average;
       squaredDifferences += difference * difference;
     }
-    double standardDeviation = Math.sqrt(squaredDifferences / times.length);
     System.out.printf(
-        "%s average: %.3f ms, standard deviation: %.3f ms%n", label, average, standardDeviation);
+        "%s average: %.3f ms, standard deviation: %.3f ms%n",
+        label, average, Math.sqrt(squaredDifferences / times.length));
   }
 }

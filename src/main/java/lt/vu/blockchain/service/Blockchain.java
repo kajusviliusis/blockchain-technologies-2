@@ -2,6 +2,7 @@ package lt.vu.blockchain.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +19,9 @@ public final class Blockchain {
   private final List<Block> chain = new ArrayList<>();
   private final Map<String, Long> balances = new HashMap<>();
   private final Set<String> confirmedTransactionIds = new HashSet<>();
+  private final Map<String, Long> balancesView = Collections.unmodifiableMap(balances);
+  private final Set<String> confirmedTransactionIdsView =
+      Collections.unmodifiableSet(confirmedTransactionIds);
   private final Map<String, Long> initialBalances;
   private final HashFunctionV012 hashFunction = new HashFunctionV012();
 
@@ -40,8 +44,16 @@ public final class Blockchain {
     return Map.copyOf(balances);
   }
 
+  Map<String, Long> balancesView() {
+    return balancesView;
+  }
+
   public Set<String> confirmedTransactionIds() {
     return Set.copyOf(confirmedTransactionIds);
+  }
+
+  Set<String> confirmedTransactionIdsView() {
+    return confirmedTransactionIdsView;
   }
 
   public Map<String, Long> initialBalances() {

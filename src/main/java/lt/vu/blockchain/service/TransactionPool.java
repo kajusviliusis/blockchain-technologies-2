@@ -2,7 +2,6 @@ package lt.vu.blockchain.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +22,7 @@ public final class TransactionPool {
   private final Blockchain blockchain;
   private final Random random;
   private final HashFunctionV012 hashFunction = new HashFunctionV012();
+  private int[] shuffledIndexes = new int[0];
 
   public TransactionPool(Blockchain blockchain, List<Transaction> transactions) {
     this(blockchain, transactions, 42L);
@@ -46,7 +46,8 @@ public final class TransactionPool {
       return false;
     }
     String reason =
-        rejectionReason(transaction, blockchain.balances(), blockchain.confirmedTransactionIds());
+        rejectionReason(
+            transaction, blockchain.balancesView(), blockchain.confirmedTransactionIdsView());
     if (reason != null) {
       recordRejection(transaction, reason);
       return false;
@@ -74,28 +75,49 @@ public final class TransactionPool {
   }
 
   public List<Transaction> selectTransactions() {
-    // Naudojame laikina balansu kopija, kad tikrindami transakcijas nekeistume
-    // tikruju balansu.
-    Map<String, Long> temporaryBalances = new HashMap<>(blockchain.balances());
-    Set<String> confirmedIds = blockchain.confirmedTransactionIds();
-    List<Transaction> shuffled = new ArrayList<>(pending);
-    Collections.shuffle(shuffled, random);
+    // Laikome tik pakitusius balansus, kad atranka nekeistu patvirtintos busenos.
+    Map<String, Long> confirmedBalances = blockchain.balancesView();
+    Map<String, Long> temporaryBalances = new HashMap<>();
+    Set<String> confirmedIds = blockchain.confirmedTransactionIdsView();
+    int pendingCount = pending.size();
+    if (shuffledIndexes.length < pendingCount) {
+      shuffledIndexes = new int[pendingCount];
+    }
+    for (int i = 0; i < pendingCount; i++) {
+      shuffledIndexes[i] = i;
+    }
+    for (int i = pendingCount; i > 1; i--) {
+      int other = random.nextInt(i);
+      int previous = shuffledIndexes[i - 1];
+      shuffledIndexes[i - 1] = shuffledIndexes[other];
+      shuffledIndexes[other] = previous;
+    }
 
     List<Transaction> selected = new ArrayList<>(MAX_BLOCK_TRANSACTIONS);
-    for (Transaction transaction : shuffled) {
+    List<Transaction> newlyRejected = null;
+    for (int i = 0; i < pendingCount; i++) {
       if (selected.size() == MAX_BLOCK_TRANSACTIONS) {
         break;
       }
-      String rejectionReason = rejectionReason(transaction, temporaryBalances, confirmedIds);
-      if (rejectionReason != null) {
-        pending.remove(transaction);
-        pendingIds.remove(transaction.transactionId());
-        recordRejection(transaction, rejectionReason);
+      Transaction transaction = pending.get(shuffledIndexes[i]);
+      // Sandorio laukai ir ID jau patikrinti ji priimant i telkini.
+      if (confirmedIds.contains(transaction.transactionId())) {
+        if (newlyRejected == null) {
+          newlyRejected = new ArrayList<>();
+        }
+        newlyRejected.add(transaction);
+        recordRejection(transaction, "already confirmed");
         continue;
       }
 
-      long senderBalance = temporaryBalances.get(transaction.sender());
-      long receiverBalance = temporaryBalances.get(transaction.receiver());
+      Long senderBalance = temporaryBalances.get(transaction.sender());
+      if (senderBalance == null) {
+        senderBalance = confirmedBalances.get(transaction.sender());
+      }
+      Long receiverBalance = temporaryBalances.get(transaction.receiver());
+      if (receiverBalance == null) {
+        receiverBalance = confirmedBalances.get(transaction.receiver());
+      }
       // Jei siuntejui neuztenka balanso, transakcija paliekame pending, nes balance
       // gali atsirasti veliau.
       if (senderBalance < transaction.amount()) {
@@ -108,6 +130,15 @@ public final class TransactionPool {
       temporaryBalances.put(transaction.sender(), senderBalance - transaction.amount());
       temporaryBalances.put(transaction.receiver(), receiverBalance + transaction.amount());
       selected.add(transaction);
+    }
+
+    if (newlyRejected != null) {
+      Set<String> rejectedIds = new HashSet<>();
+      for (Transaction transaction : newlyRejected) {
+        rejectedIds.add(transaction.transactionId());
+      }
+      pending.removeIf(transaction -> rejectedIds.contains(transaction.transactionId()));
+      pendingIds.removeAll(rejectedIds);
     }
 
     return List.copyOf(selected);

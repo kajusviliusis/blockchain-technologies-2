@@ -88,7 +88,7 @@ class BlockchainSimulationTest {
     BlockchainSimulation simulation = new BlockchainSimulation(blockchain, pool);
 
     assertTrue(simulation.mineNextBlock());
-    List<MiningResult> round = simulation.candidateRoundsByHeight().get(1).getFirst();
+    List<MiningResult> round = simulation.candidateRoundsByHeight().get(1).getLast();
     assertEquals(5, round.size());
     for (MiningResult result : round) {
       assertTrue(result.found());
